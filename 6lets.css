@@ -8,7 +8,20 @@ body {
 
 * {
     box-sizing: border-box;
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Poppins', arial, helvetica, sans-serif;
+    scroll-behavior: smooth;
+    user-select: none;
+}
+
+.topBar {
+    width: 100%;
+    height: 40px;
+    background-color: #ffb347;
+    margin: 0;
+    color: white;
+    text-align: center;
+    padding-top: 2px;
+    font-size: 26px;
 }
 
 .scoreboard {
@@ -18,7 +31,7 @@ body {
     width: 120px;
     height: 84px;
     color: white;
-    font-size: 40px;
+    font-size: 30px;
     text-align: right;
 }
 
@@ -57,10 +70,10 @@ body {
 
 .gameContainer {
     position: absolute;
-    top: 5px;
+    top: 50px;
     left: 50%;
     transform: translate(-50%);
-    height: 400px;
+    height: calc(100% - 330px);
     width: 900px;
     color: white;
     overflow-y: auto;
@@ -84,35 +97,63 @@ body {
 
 .endgameFrame {
     width: 350px;
-    height: 350px;
+    height: auto;
+    padding-bottom: 50px;
     background-color: white;
     border-radius: 10px;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    -webkit-animation: ShareFrameAni 1.8s ease-in-out;
+    -moz-animation: ShareFrameAni 1.8s ease-in-out;
+	-ms-animation: ShareFrameAni 1.8s ease-in-out;
+	-o-animation: ShareFrameAni 1.8s ease-in-out;
+    animation: ShareFrameAni 1.8s ease-in-out;
 }
 
 .nextGame {
-    font-size: 35px;
+    font-size: 22px;
     text-align: center;
-    margin-top: 28px;
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%);
+    bottom: 5px;
+    width: 325px;
 }
 
 .share {
     width: 300px;
-    height: 75px;
+    height: 55px;
     background-color: #8b9dc3;
     font-size: 35px;
     color: white;
     cursor: pointer;
     border: none;
+    margin-top: 75px;
+    border-radius: 10px;
 }
 
 .wordOfTheDay {
     font-size: 45px;
+    width: 40px;
+    margin-left: 3px;
+    height: auto;
+    background-color: #00a550;
+    color: white;
+    float: left;
+}
+
+.wordOfTheDayContainer {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%);
     text-align: center;
-    margin-top: 20px;
+    height: auto;
+    margin-top: 40px;
+    width: 260px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .xOutEndgame {
@@ -127,8 +168,8 @@ body {
 
 .backToShare {
     position: absolute;
-    top: 0px;
-    left: 0px;
+    top: 5px;
+    left: 5px;
     padding: 3px;
     width: auto;
     height: auto;
@@ -184,7 +225,7 @@ body {
     padding: 5px;
     position: absolute;
     z-index: 1;
-    bottom: 115%;
+    bottom: 50%;
     left: 50%;
     margin-left: -75px;
     opacity: 0;
@@ -206,6 +247,39 @@ body {
 .tooltip:hover .tooltiptext {
     visibility: visible;
     opacity: 1;
+}
+
+.bouncy {
+    animation: bouncy 7s infinite linear;
+    position: relative;
+}
+
+.histogramFrame {
+    width: 332px;
+    height: auto;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 25px;
+    text-align: center;
+    font-size: 25px;
+}
+
+.histogramLabels {
+    float: left;
+    height: auto;
+    width: 30px;
+    background-color: black;
+    color: white;
+    cursor: pointer;
+    border: none;
+}
+
+.graphElement {
+    float: left;
+    width: 30px;
+    background-color: #00a550;
+    cursor: pointer;
+    border: none;
 }
 
 @keyframes ToastAni {
@@ -272,6 +346,46 @@ body {
 	}
 }
 
+@keyframes bouncy {
+    0%{top:0em}
+    40%{top:0em}
+    43%{top:-0.9em}
+    46%{top:0em}
+    48%{top:-0.4em}
+    50%{top:0em}
+    100%{top:0em;}
+}
+
+@-webkit-keyframes ShareFrameAni {
+	0%  {
+		opacity: 0.0;
+        top: 100%;
+        left: 50%;
+        transform: translate(0%, -50%);
+	}
+	100%  {
+		opacity: 1.0;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+	}
+}
+
+@keyframes ShareFrameAni {
+    0%  {
+		opacity: 0.0;
+        top: 100%;
+        left: 50%;
+        transform: translate(-50%, 0%);
+	}
+	100%  {
+		opacity: 1.0;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+	}
+}
+
 @media only screen and (max-width: 1100px),
 only screen and (max-device-width: 1100px) {
     .keyboardContainer {
@@ -290,7 +404,6 @@ only screen and (max-device-width: 1100px) {
     }
     .gameContainer {
         width: 600px;
-        height: 267px;
     }
     .guessContainer {
         width: 600px;
@@ -332,7 +445,7 @@ only screen and (max-device-width: 690px) {
     }
     .gameContainer {
         width: 360px;
-        height: 360px;
+        height: calc(100% - 195px);
     }
     .guessContainer {
         width: 360px;
@@ -345,9 +458,6 @@ only screen and (max-device-width: 690px) {
     }
     .letterA {
         margin-left: 25px;
-    }
-    .scoreboard {
-        font-size: 31px;
     }
 }
 
@@ -368,7 +478,6 @@ only screen and (max-device-width: 525px) {
     }
     .gameContainer {
         width: 258px;
-        height: 300px;
     }
     .guessContainer {
         width: 258px;
@@ -381,8 +490,5 @@ only screen and (max-device-width: 525px) {
     }
     .letterA {
         margin-left: 15px;
-    }
-    .scoreboard {
-        font-size: 20px;
     }
 }
