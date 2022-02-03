@@ -4,6 +4,8 @@
 #include <vector>
 #include <sstream>
 #include <cstring>
+#include <chrono>
+#include <ctime>
 
 
 using namespace std;
@@ -15,7 +17,7 @@ void WriteWordToFile(string sFile, string sWord);
 
 int main(int argc, char **argv) {
 
-    char * p_cWords = LoadFile("/srv/http/6lets/TodaysWordList.txt");
+    char * p_cWords = LoadFile("/srv/http/6lets/Todays6LetWordList.txt");
 
     int length = strlen(p_cWords) * sizeof(char);
     cout << "Length: " << length << endl;
@@ -28,13 +30,9 @@ int main(int argc, char **argv) {
     cout << "Rand: " << nRand << endl;
     cout << "Word: " << v[nRand] << endl;
 
-    string sWordFile = "<?php\necho \"" + v[nRand] + "\";\n?>";
+    WriteWordToFile("/srv/http/6lets/Todays6LetWord.txt", v[nRand]);
 
-    WriteWordToFile("/srv/http/6lets/TodaysWord.php", sWordFile);
-
-    WriteWordToFile("/srv/http/6lets/TodaysWord.txt", v[nRand]);
-
-    char * p_cTries = LoadFile("/srv/http/6lets/Tries.txt");
+    char * p_cTries = LoadFile("/srv/http/6lets/6LetTries.txt");
 
     auto t = explode(p_cTries, ',');
 
@@ -42,12 +40,30 @@ int main(int argc, char **argv) {
     nT = nT + 1;
     cout << "Game #: " << nT << endl;
 
-    string sTries = to_string(nT) + ",0,0,0,0,0,0,0,0,0,0,0";
+    int nTraffic = 0;
+    for (int c=1; c<12; c++) {
+        nTraffic += stoi(t[c]);
+        cout << c << ". " << stoi(t[c])  << endl;
+    }
 
-    cout << sTries;
+    cout << nTraffic << endl;
 
-    WriteWordToFile("/srv/http/6lets/Tries.txt", sTries);
+    char * p_cTraffic = LoadFile("/srv/http/6lets/Traffic.txt");
+    auto now = std::chrono::system_clock::now();
+    time_t now_time = chrono::system_clock::to_time_t(now);
+    char * c_pRightNow = ctime(&now_time);
+    string sSpace = " players on ";
+    string sTraffic = to_string(nTraffic) + sSpace + c_pRightNow + "\n" + p_cTraffic + "\0";
+    cout << "Traffic: " + sTraffic << endl;
+    WriteWordToFile("/srv/http/6lets/Traffic.txt", sTraffic);
 
+    string sTries = to_string(nT) + ",0,0,0,0,0,0,0,0,0,0,0,0";
+
+    cout << sTries << endl;
+
+    WriteWordToFile("/srv/http/6lets/6LetTries.txt", sTries);
+
+    free(p_cTraffic);
     free(p_cWords);
     free (p_cTries);
 
@@ -97,7 +113,7 @@ char* LoadFile(const char *source) {
 
 // g++ /srv/http/6lets/6lets.cpp -o /srv/http/6lets/6lets
 
-// 0 9 * * * /srv/http/6lets/./6lets
-// 0 21 * * * /srv/http/6lets/./6lets
+// 0 0 * * * /srv/http/6lets/./6lets
+// 0 12 * * * /srv/http/6lets/./6lets
 
 // 172.116.51.78:55112

@@ -1,31 +1,26 @@
-// Todo
-// 1.  When keyboard changes to green it should lock
-// 4.  See if LogTries(nTries=0) && GetHistogramData() can be combined into one function?
-
+// To do
+// 1.  Duplicate copy code needs to be made not duplicate.
+// 2.  Endscreen calls server three times.
 
 var g_sGuess = "";
 var nGuess = 1;
-var g_aWordList = null;
+var g_a6Dictionary = null;
 var g_sTodaysWord = null;
 var g_aCookieString = [];
 var g_bNotFinished = false;
 var g_nGameNumber;
+var g_nInstructionsVisited = 0;
+var g_6LetTries = null;
+LoadTriesCookie.Loading = false;
 
 onload = () => {
     InstructionsFrame();
     GetTodaysWord();
 }
 
-function GetTodaysWord() {
-    postFileFromServer("TodaysWord.txt", "", TodaysWordCallback);
-    function TodaysWordCallback(data) {
-        g_sTodaysWord = data.trim();
-        GetWordList();
-    }
-}
-
 function InstructionsFrame() {
     document.getElementById('Main').innerHTML = "";
+    g_nInstructionsVisited++;
 
     let sTitle = "SIXLETTERS";
     let sPage = "";
@@ -38,7 +33,7 @@ function InstructionsFrame() {
     sPage += "</div>";
     sPage += "<div style='font-size: 17px;'>";
     //sPage += "<span style='font-size: 25px;'><b>Six Letters</b></span>"
-    sPage += "<br><br>Guess the word in up to ten tries.  Each guess must be an actual six-letter word.<br><br>After each guess, the squares will change colors.<div style='text-align: left;'><ul><li><span style='color: lightgreen; background: black;'><b>Green</b></span> is a letter in the word in the right place.  </li><li><span style='color: yellow; background: black;'><b>Yellow</b></span> is a letter in the word, but in the wrong place.  </li><li><span style='color: lightgray; background: black;'><b>Gray</span> is a letter that is not in the word.</li></ul></div></div>";
+    sPage += "<br><br>Guess the word in up to ten tries.  Each guess must be an actual six-letter word.<br><br>After each guess, the squares will change colors.<div style='text-align: left;'><ul><li><span style='color: lightgreen; background: black;'><b>Green</b></span> is a letter in the word in the right place.  </li><li><span style='color: yellow; background: black;'><b>Yellow</b></span> is a letter in the word, but in the wrong place.  </li><li><span style='color: lightgray; background: black;'><b>Gray</b></span> is a letter that is not in the word.</li></ul></div></div>";
     sPage += "<br><button style='font-size: 17px; padding: 10px;' onClick='MainFrame()'>Begin</button>";
     sPage += "</div>";
     document.getElementById('Main').style.opacity = 0.1;
@@ -53,7 +48,7 @@ function MainFrame() {
 
     sPage += "<div class='topBar'>";
     sPage += "<div id='instructions' style='position: absolute; left: 5px; width: auto; height: auto; cursor: pointer;' onClick='InstructionsFrame()'>&#9432;</div>";
-    sPage += "<div>SIXLETTERS</div>"; // put messages icon on this bar
+    sPage += "<div>SIXLETTERS</div>";
     sPage += "</div>";
 
     sPage += "<div id='scoreboard' class='scoreboard'>1/10</div>";
@@ -77,7 +72,7 @@ function MainFrame() {
     for (let i=0; i<10; i++) {
         sPage += "<div id='"+aLetters[i]+"' class='key' onClick='type(\""+aLetters[i]+"\")'>"+aLetters[i]+"</div>";
     }
-    sPage += "<div id='"+aLetters[10]+"' class='key letterA' onClick='type(\""+aLetters[10]+"\")'>"+aLetters[10]+"</div>";
+    sPage += "<div id='A' class='key letterA' onClick='type(\""+aLetters[10]+"\")'>A</div>";
     for (let i=11; i<19; i++) {
         sPage += "<div id='"+aLetters[i]+"' class='key' onClick='type(\""+aLetters[i]+"\")'>"+aLetters[i]+"</div>";
     }
@@ -89,16 +84,30 @@ function MainFrame() {
     sPage += "</div>";
     sPage += "<div id='Toast' class='Toast'></div>";
     document.getElementById('Main').innerHTML = sPage;
-    document.getElementById('Body').addEventListener("keyup", function (event) {
-        if ('Backspace' == event.key)
-            deleteKey();
-        else if ('Enter' == event.key)
-            guess();
-        else if ('Escape' == event.key)
-            return;
-        else
-            type(event.key.toUpperCase());
-    });
+
+    for (let x=1; x<g_aCookieString.length; x++) {
+        nGuess = x;
+        g_sGuess = g_aCookieString[x];
+        for (let y=0; y<g_aCookieString[x].length; y++)
+            document.getElementById(nGuess + 'guessSlot' + (y+1)).innerHTML = g_aCookieString[x][y];
+        guess();
+    }
+
+    g_sGuess = "";
+
+    if (g_nInstructionsVisited < 2) {
+        document.getElementById('Body').addEventListener("keyup", function (event) {
+            if ('Backspace' == event.key)
+                deleteKey();
+            else if ('Enter' == event.key)
+                guess();
+            else {
+                let nKey = event.keyCode;
+                if (nKey >= 65 && nKey <= 90)
+                    type(event.key.toUpperCase());
+            }
+        });
+    }
 }
 
 function type(sLetter) {
@@ -127,39 +136,74 @@ function guess() {
 
     if (10 < nGuess) {
         endGameFrame();
-        LogTries(nPrevGuess);
+        Log6LetTries(11);
         return;
     }
 
     if (!LoadTriesCookie.Loading)
         saveTriesCookie(g_sGuess, nPrevGuess);
 
-    let sDiv = "";
-    if (g_sTodaysWord == g_sGuess) { // you got it
+    colorTiles(nPrevGuess, g_sGuess);
+}
+
+var colorTiles = (nGuess, sTry) => {
+    let aColors = [];
+    let sTry_Copy = sTry.slice();
+    let sTodaysWord = g_sTodaysWord.slice();
+    if (sTodaysWord == sTry_Copy) { // you got it
         for (let i=1; i<=6; i++) {
-            document.getElementById(g_sGuess.charAt(i-1)).style.backgroundColor = "#00a550";
-            document.getElementById(nPrevGuess + 'guessSlot' + i).style.backgroundColor = "#00a550";
+            document.getElementById(sTry_Copy.charAt(i-1)).style.backgroundColor = "#00a550";
+            document.getElementById(nGuess + 'guessSlot' + i).style.backgroundColor = "#00a550";
         }
+        Log6LetTries(nGuess);
         endGameFrame();
-        LogTries(nPrevGuess);
         return;
     }
 
-    for (let i=1; i<=6; i++) {
-        sDiv += "<div id='"+nGuess+"guessSlot"+i+"' class='guessLetterContainer'></div>";
+    // Color the greens (#00a550) first...
+    for (let g=0; g<sTry_Copy.length; g++) {
+        if (sTry_Copy[g] == g_sTodaysWord[g]) {
+            document.getElementById(sTry_Copy.charAt(g)).style.backgroundColor = "#00a550"; // keys
+            document.getElementById(nGuess + 'guessSlot' + (g+1)).style.backgroundColor = "#00a550";
+            // color the tile
+            sTry_Copy = sTry_Copy.substr(0, g) + " " + sTry_Copy.substr(g+1); // remove the letter
+            sTodaysWord = sTodaysWord.substr(0, g) + " " + sTodaysWord.substr(g+1); // remove the letter
+            aColors[g] = 'g';
+        }
+    }
 
-        if (g_sGuess.charAt(i-1) == g_sTodaysWord.charAt(i-1)) {
-            document.getElementById(g_sGuess.charAt(i-1)).style.backgroundColor = "#00a550";
-            document.getElementById(nPrevGuess + 'guessSlot' + i).style.backgroundColor = "#00a550";
-        }
-        else if (g_sTodaysWord.indexOf(g_sGuess.charAt(i-1)) != -1 && !alreadyLit(i)) {
-            document.getElementById(g_sGuess.charAt(i-1)).style.backgroundColor = "#ffd800";
-            document.getElementById(nPrevGuess + 'guessSlot' + i).style.backgroundColor = "#ffd800";
-        }
+    // Then color the yellows (#ffd800)...
+    for (let y=0; y<sTry_Copy.length; y++) {
+        if (" " == sTry_Copy[y])
+            continue;
         else {
-            document.getElementById(g_sGuess.charAt(i-1)).style.backgroundColor = "#383838";
-            document.getElementById(nPrevGuess + 'guessSlot' + i).style.backgroundColor = "#383838";
+            let nPos = sTodaysWord.search(sTry_Copy[y])
+            if (-1 == nPos) {
+                document.getElementById(sTry_Copy.charAt(y)).style.backgroundColor = "#383838";
+                document.getElementById(nGuess + 'guessSlot' + (y+1)).style.backgroundColor = "#383838";
+                aColors[y] = 'w';
+            }
+            else {
+                document.getElementById(sTry_Copy.charAt(y)).style.backgroundColor = "#ffd800"; // keys
+                document.getElementById(nGuess + 'guessSlot' + (y+1)).style.backgroundColor = "#ffd800";
+                sTodaysWord = sTodaysWord.substr(0, nPos) + " " + sTodaysWord.substr(nPos+1); // remove the letter
+                aColors[y] = 'y';
+            }
         }
+    }
+
+    // Color the keyboard, first yellow, then green...
+    for (let k = 0; k < 6; k++) {
+        if ('y' == aColors[k])
+            document.getElementById(sTry.charAt(k)).style.backgroundColor = "#ffd800"; // keys
+        else if ('g' == aColors[k])
+            document.getElementById(sTry.charAt(k)).style.backgroundColor = "#00a550"; // keys
+    }
+
+    // Make the next row
+    let sDiv = "";
+    for (let r = 1; r < 7; r++) {
+        sDiv += "<div id='"+(nGuess+1)+"guessSlot"+r+"' class='guessLetterContainer'></div>";
     }
 
     let sContainer = "";
@@ -170,34 +214,7 @@ function guess() {
     document.getElementById('gameContainer').scroll(0, document.getElementById('gameContainer').scrollHeight);
     g_sGuess = "";
 
-    document.getElementById('scoreboard').innerHTML = nGuess + "/10";
-}
-
-function alreadyLit(index) {
-    if (1 == index) { // always would yellow the first let (might have to check for greens)
-        return false;
-    }
-    let c = g_sGuess.charAt(index - 1);
-    let nCount = 0;
-    for (let i=0; i<6; i++) {
-        if (c == g_sTodaysWord.charAt(i))
-            nCount++;
-    }
-    let nCopy = nCount;
-    for (let i=0; i<index-1; i++) {
-        if (c == g_sGuess.charAt(i))
-            nCopy--;
-        if (0 == nCopy)
-            return true;
-    }
-    nCopy = nCount;
-    for (let i=index+1; i<6; i++) {
-        if (c == g_sGuess.charAt(i))
-            nCopy--;
-        if (0 == nCopy)
-            return true;
-    }
-    return false;
+    document.getElementById('scoreboard').innerHTML = nGuess+1 + "/10";
 }
 
 function endGameFrame() {
@@ -210,17 +227,22 @@ function endGameFrame() {
         sPage += "<div class='wordOfTheDay bouncy' style='animation-delay:"+(i/20)+"s'>"+g_sTodaysWord.charAt(i)+"</div>";
     }
     sPage += "</div>";
+
     sPage += "<div class='tooltip'>";
-    sPage += "<button class='share' onClick='copyStats()'>";
+    if (navigator.share)
+        sPage += "<button class='share' onClick='copyStats()'>";
+    else
+        sPage += "<button class='share' style='width: 284px;' onClick='copyStats()'>";
     sPage += "<span class='tooltiptext' id='tooltip'>Copy</span>";
-    sPage += "Share</button>";
+    sPage += "Copy</button>";
     sPage += "</div>";
 
-    //sPage += "<br><br>"; // adding some air
+    if (navigator.share)
+        sPage += "<button class='share' onClick='shareToApps()'>Share</button>";
 
     sPage += "<div class='histogramFrame'>";
     sPage += "<div id='statDisplay' style='margin-left: auto; margin-right: auto; font-size: 17px;'></div>";
-    for (let i=1; i<=10; i++) {
+    for (let i=1; i<11; i++) {
         sPage += "<div id='guessLabel"+i+"' class='histogramLabels'>"+i+"</div>";
     }
     sPage += "<div id='didntGuessRightLabel' class='histogramLabels'>✖</div>";
@@ -230,18 +252,22 @@ function endGameFrame() {
     sPage += "<div id='didntGuessRight' class='graphElement'></div>";
     sPage += "</div>";
 
-    sPage += "<div class='nextGame'>New Games 9AM & 9PM PST</div>"; // time til next word
+    sPage += "<div class='nextGame' onClick='GetHistogramData()'>New Games 12AM & 12PM PST</div>"; // time til next word
     sPage += "</div>";
     document.getElementById('Main').style.opacity = 0.1;
     document.getElementById('Body').innerHTML += sPage;
     document.getElementById('gameContainer').scroll(0, document.getElementById('gameContainer').scrollHeight);
 
-    GetHistogramData();
-    setTimeout(GetHistogramData, 3000);
+    if (g_6LetTries)
+        GetHistogramDataCallback(g_6LetTries);
+    else
+        GetHistogramData();
+
+    setTimeout(GetHistogramData, 2000);
 }
 
 function GetHistogramData() {
-    postFileFromServer("Tries.txt", "", GetHistogramDataCallback);
+    postFileFromServer("6LetTries.txt", "", GetHistogramDataCallback);
 }
 
 function seeGame() {
@@ -254,22 +280,50 @@ function seeGame() {
     document.getElementById('gameContainer').scroll(0, document.getElementById('gameContainer').scrollHeight);
 }
 
-function copyStats() {
-    let sClipboard = "";
+function makeShareableEmojiBlock() {
+    let sBlock = "";
     let sDate = new Date();
-    sClipboard += "Six Letters\n";
-    sClipboard += sDate.toString().substring(4, 15) + " (#" + g_nGameNumber + ")" + "\n";
+    sBlock += "Six Letters\n";
+    sBlock += sDate.toString().substring(4, 15) + " (#" + g_nGameNumber + ")" + "\n";
     for (let i=1; i<nGuess; i++) {
         for (let j=1; j<=6; j++) {
             let bgColor = document.getElementById(i+'guessSlot'+j).style.backgroundColor;
-            if ("rgb(0, 165, 80)" === bgColor) sClipboard += "🟩";
-            else if ("rgb(255, 216, 0)" === bgColor) sClipboard += "🟨";
-            else if ("rgb(56, 56, 56)" === bgColor) sClipboard += "⬛";
+            if ("rgb(0, 165, 80)" === bgColor) sBlock += "🟩";
+            else if ("rgb(255, 216, 0)" === bgColor) sBlock += "🟨";
+            else if ("rgb(56, 56, 56)" === bgColor) sBlock += "⬛";
         }
-        sClipboard += "\n";
+        sBlock += "\n";
     }
-    sClipboard += "https://6lets.com/";
+    sBlock += "https://6lets.com/";
+    return sBlock;
+}
 
+function shareToApps() {
+    let sClipboard = makeShareableEmojiBlock();
+
+    if (navigator.share) {
+        navigator.share({
+            title: document.title + "\n",
+            text: sClipboard,
+            url: window.location.href
+        })
+        .then(() => console.log('Successful share'))
+        .catch((error) => console.log('Error sharing', error));
+    }
+    else {
+        let copyText = document.createElement("textarea");
+        copyText.innerHTML = sClipboard;
+        document.body.appendChild(copyText);
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        document.execCommand("copy");
+        document.body.removeChild(copyText);
+        document.getElementById('tooltip').innerHTML = "Text Copied To Clipboard";
+    }
+}
+
+function copyStats() {
+    let sClipboard = makeShareableEmojiBlock();
     let copyText = document.createElement("textarea");
     copyText.innerHTML = sClipboard;
     document.body.appendChild(copyText);
@@ -288,16 +342,16 @@ function Toast(sMess) {
 }
 
 function GetWordList() {
-    postFileFromServer("WordList.txt", "", WordListCallback);
+    postFileFromServer("6LetWordList.txt", "", WordListCallback);
     function WordListCallback(data) {
-        g_aWordList = data.split('\n');
+        g_a6Dictionary = data.split('\n');
         LoadTriesCookie();
     }
 }
 
 function CheckIfEntryIsAWord(sEntry) {
-    for (let x=0; x<g_aWordList.length; x++) {
-        if (sEntry == g_aWordList[x])
+    for (let x=0; x<g_a6Dictionary.length; x++) {
+        if (sEntry == g_a6Dictionary[x])
             return true;
     }
     return false;
@@ -314,11 +368,12 @@ function LoadTriesCookie() {
     let jsonTries = getCookie("Tries");
     if (!jsonTries)
         return false; // No cookie found
-    MainFrame();
+
     let objTries = JSON.parse(jsonTries);
     if (objTries[0] != g_sTodaysWord)
         return false; // Cookie is for old word
     else {
+        MainFrame();
         for (let x = 1; x < objTries.length; x++) {
             g_aCookieString[x] = objTries[x];
             nGuess = x;
@@ -334,37 +389,49 @@ function LoadTriesCookie() {
     return true;
 }
 
-function LogTries(nTries=0) {
+function Log6LetTries(nTries=0) {
     if (!g_bNotFinished)
         return;
-    postFileFromServer("Tries.php", "Tries=" + nTries, TriesCallback);
+    postFileFromServer("6LetTries.php", "Tries=" + nTries, TriesCallback);
     function TriesCallback(data) {
-
+        g_6LetTries = data.trim();
+        //endGameFrame();
     }
 }
 
 function GetHistogramDataCallback(data) {
+    g_6LetTries = data.trim();
     if (!document.getElementById('statDisplay'))
         return;
     let aData = data.split(',');
     g_nGameNumber = Number(aData[0]);
     let nTotal = 0; // users for this game
     let nMajority = 1;
-    for (let i=1; i<aData.length-1; i++) {
+    for (let i=1; i<12; i++) {
         nTotal += Number(aData[i]);
         if (Number(aData[nMajority]) < Number(aData[i]))
             nMajority = i;
     }
-    document.getElementById('statDisplay').innerHTML = nTotal.toString() + " plays on this puzzle";
-    aPercentages = [];
+    let aPercentages = [];
     for (let i=1; i<12; i++) {
-        aPercentages.push(Number(aData[i]) / nTotal);
+        aPercentages.push((Number(aData[i]) / nTotal).toFixed(2));
     }
-    for (let i=0; i<=9; i++) {
+
+    let nMultiple = 100;
+    if (0 != aPercentages[nMajority-1]) {
+        nMultiple = 100 / aPercentages[nMajority-1];
+        nMultiple = Math.round(nMultiple);
+    }
+
+    for (let i=0; i<10; i++) {
+
+        // this is for text?
         let nPercentage = aPercentages[i] * 100;
         let nIndex = nPercentage.toString().indexOf('.') != -1 ? nPercentage.toString().indexOf('.') : 3;
         let pPercent = nPercentage.toString().substring(0,nIndex);
-        document.getElementById('guessNumber' + i).style.height = 200 * aPercentages[i] > 5 ? (200 * aPercentages[i]) + 'px' : '5px';
+
+        document.getElementById('guessNumber' + i).style.height = nMultiple * aPercentages[i] > 5 ? (nMultiple * aPercentages[i]) + 'px' : '2px';
+
         document.getElementById('guessNumber' + i).addEventListener("click", function() {
             document.getElementById('statDisplay').innerHTML = pPercent + "% of people got this word in " + (i+1) + " tries";
         });
@@ -372,8 +439,8 @@ function GetHistogramDataCallback(data) {
             document.getElementById('statDisplay').innerHTML = pPercent + "% of people got this word in " + (i+1) + " tries";
         });
     }
-    let nDidntSolve = aPercentages[9] * 100;
-    document.getElementById('didntGuessRight').style.height = 200 * aPercentages[9] > 5 ? (200 * aPercentages[10]) + 'px' : '5px';
+    let nDidntSolve = aPercentages[10] * 100;
+    document.getElementById('didntGuessRight').style.height = nMultiple * aPercentages[10] > 5 ? (nMultiple * aPercentages[10]) + 'px' : '2px';
     let didntSolveIndex = nDidntSolve.toString().indexOf('.') != -1 ? nDidntSolve.toString().indexOf('.') : 3;
     let pDidntSolve = nDidntSolve.toString().substring(0, didntSolveIndex);
     document.getElementById('didntGuessRight').addEventListener("click", function() {
@@ -384,6 +451,14 @@ function GetHistogramDataCallback(data) {
     });
     if (nTotal)
         document.getElementById('guessNumber' + (nMajority-1)).click();
+}
+
+function GetTodaysWord() {
+    postFileFromServer("Todays6LetWord.txt", "", TodaysWordCallback);
+    function TodaysWordCallback(data) {
+        g_sTodaysWord = data.trim();
+        GetWordList();
+    }
 }
 
 function setCookie(c_name, value, exdays) {
